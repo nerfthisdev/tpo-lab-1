@@ -1,101 +1,106 @@
 package org.example.bplustree
 
-import kotlin.test.Test
-import kotlin.test.assertContentEquals
-import kotlin.test.assertFalse
-import kotlin.test.assertTrue
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertIterableEquals
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.MethodSource
 
 class BPlusTreeTest {
-    @Test
-    fun `insertion without split visits expected points`() {
+    @ParameterizedTest
+    @MethodSource("insertScenarios")
+    fun `insert produces expected trace`(
+        initialKeys: List<Int>,
+        insertedKey: Int,
+        expectedTrace: List<String>
+    ) {
         val tree = BPlusTree(maxKeys = 7)
+        initialKeys.forEach(tree::insert)
 
-        val trace = tree.insert(10)
+        val trace = tree.insert(insertedKey)
 
-        assertContentEquals(
-            listOf("INSERT_START", "LEAF_VISIT", "LEAF_INSERT", "LEAF_OK", "INSERT_END"),
-            trace
-        )
+        assertIterableEquals(expectedTrace, trace)
     }
 
-    @Test
-    fun `root leaf split produces reference trace`() {
+    @ParameterizedTest
+    @MethodSource("searchScenarios")
+    fun `search produces expected result and trace`(
+        insertedKeys: List<Int>,
+        searchedKey: Int,
+        expectedResult: Boolean,
+        expectedTrace: List<String>
+    ) {
         val tree = BPlusTree(maxKeys = 7)
-        listOf(10, 20, 30, 40, 50, 60, 70).forEach(tree::insert)
+        insertedKeys.forEach(tree::insert)
 
-        val trace = tree.insert(80)
+        val (result, trace) = tree.containsWithTrace(searchedKey)
 
-        assertContentEquals(
-            listOf(
-                "INSERT_START",
-                "LEAF_VISIT",
-                "LEAF_INSERT",
-                "LEAF_SPLIT",
-                "ROOT_SPLIT",
-                "INSERT_END"
-            ),
-            trace
-        )
+        assertEquals(expectedResult, result)
+        assertIterableEquals(expectedTrace, trace)
     }
 
-    @Test
-    fun `internal insertion trace matches reference path`() {
-        val tree = BPlusTree(maxKeys = 7)
-        listOf(10, 20, 30, 40, 50, 60, 70, 80).forEach(tree::insert)
-
-        val trace = tree.insert(55)
-
-        assertContentEquals(
+    companion object {
+        @JvmStatic
+        fun insertScenarios(): List<Array<Any>> =
             listOf(
-                "INSERT_START",
-                "INTERNAL_VISIT",
-                "DESCEND_1",
-                "LEAF_VISIT",
-                "LEAF_INSERT",
-                "LEAF_OK",
-                "INSERT_END"
-            ),
-            trace
-        )
-    }
+                arrayOf(
+                    emptyList<Int>(),
+                    10,
+                    listOf("INSERT_START", "LEAF_VISIT", "LEAF_INSERT", "LEAF_OK", "INSERT_END")
+                ),
+                arrayOf(
+                    listOf(10, 20, 30, 40, 50, 60, 70),
+                    80,
+                    listOf(
+                        "INSERT_START",
+                        "LEAF_VISIT",
+                        "LEAF_INSERT",
+                        "LEAF_SPLIT",
+                        "ROOT_SPLIT",
+                        "INSERT_END"
+                    )
+                ),
+                arrayOf(
+                    listOf(10, 20, 30, 40, 50, 60, 70, 80),
+                    55,
+                    listOf(
+                        "INSERT_START",
+                        "INTERNAL_VISIT",
+                        "DESCEND_1",
+                        "LEAF_VISIT",
+                        "LEAF_INSERT",
+                        "LEAF_OK",
+                        "INSERT_END"
+                    )
+                )
+            )
 
-    @Test
-    fun `search hit follows expected checkpoints`() {
-        val tree = BPlusTree(maxKeys = 7)
-        listOf(10, 20, 30, 40, 50, 60, 70, 80, 55).forEach(tree::insert)
-
-        val (result, trace) = tree.containsWithTrace(55)
-
-        assertTrue(result)
-        assertContentEquals(
+        @JvmStatic
+        fun searchScenarios(): List<Array<Any>> =
             listOf(
-                "SEARCH_START",
-                "SEARCH_INTERNAL",
-                "SEARCH_DESCEND_1",
-                "SEARCH_IN_LEAF",
-                "SEARCH_HIT"
-            ),
-            trace
-        )
-    }
-
-    @Test
-    fun `search miss follows expected checkpoints`() {
-        val tree = BPlusTree(maxKeys = 7)
-        listOf(10, 20, 30, 40, 50, 60, 70, 80, 55).forEach(tree::insert)
-
-        val (result, trace) = tree.containsWithTrace(999)
-
-        assertFalse(result)
-        assertContentEquals(
-            listOf(
-                "SEARCH_START",
-                "SEARCH_INTERNAL",
-                "SEARCH_DESCEND_1",
-                "SEARCH_IN_LEAF",
-                "SEARCH_MISS"
-            ),
-            trace
-        )
+                arrayOf(
+                    listOf(10, 20, 30, 40, 50, 60, 70, 80, 55),
+                    55,
+                    true,
+                    listOf(
+                        "SEARCH_START",
+                        "SEARCH_INTERNAL",
+                        "SEARCH_DESCEND_1",
+                        "SEARCH_IN_LEAF",
+                        "SEARCH_HIT"
+                    )
+                ),
+                arrayOf(
+                    listOf(10, 20, 30, 40, 50, 60, 70, 80, 55),
+                    999,
+                    false,
+                    listOf(
+                        "SEARCH_START",
+                        "SEARCH_INTERNAL",
+                        "SEARCH_DESCEND_1",
+                        "SEARCH_IN_LEAF",
+                        "SEARCH_MISS"
+                    )
+                )
+            )
     }
 }

@@ -1,50 +1,88 @@
 package org.example.math
 
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertThrows
+import org.junit.jupiter.api.Assertions.assertTrue
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.Arguments
+import org.junit.jupiter.params.provider.MethodSource
+import java.util.stream.Stream
 import kotlin.math.PI
 import kotlin.math.sin
-import kotlin.test.Test
-import kotlin.test.assertEquals
-import kotlin.test.assertFailsWith
-import kotlin.test.assertTrue
 
 class TaylorSinTest {
-    @Test
-    fun `returns zero for zero`() {
-        assertEquals(0.0, TaylorSin.evaluate(0.0), 1e-15)
+    @ParameterizedTest
+    @MethodSource("zeroCases")
+    fun `returns zero for zero`(x: Double, expected: Double, delta: Double) {
+        assertEquals(expected, TaylorSin.evaluate(x), delta)
     }
 
-    @Test
-    fun `matches stdlib for representative values`() {
-        val values = listOf(-PI, -PI / 2, -PI / 6, PI / 6, PI / 2, PI)
-
-        values.forEach { x ->
-            assertEquals(sin(x), TaylorSin.evaluate(x), 1e-12, "x=$x")
-        }
+    @ParameterizedTest
+    @MethodSource("representativeValues")
+    fun `matches stdlib for representative values`(x: Double) {
+        assertEquals(sin(x), TaylorSin.evaluate(x), 1e-12, "x=$x")
     }
 
-    @Test
-    fun `respects periodic normalization for large argument`() {
-        val x = 1234 * PI + PI / 3
+    @ParameterizedTest
+    @MethodSource("largeArguments")
+    fun `respects periodic normalization for large argument`(x: Double) {
         assertEquals(sin(x), TaylorSin.evaluate(x), 1e-12)
     }
 
-    @Test
-    fun `preserves odd symmetry`() {
-        val x = 0.73
+    @ParameterizedTest
+    @MethodSource("oddSymmetryValues")
+    fun `preserves odd symmetry`(x: Double) {
         assertEquals(-TaylorSin.evaluate(x), TaylorSin.evaluate(-x), 1e-12)
     }
 
-    @Test
-    fun `stops on positive epsilon only`() {
-        assertFailsWith<IllegalArgumentException> {
-            TaylorSin.evaluate(1.0, epsilon = 0.0)
+    @ParameterizedTest
+    @MethodSource("invalidEpsilons")
+    fun `stops on positive epsilon only`(epsilon: Double) {
+        assertThrows(IllegalArgumentException::class.java) {
+            TaylorSin.evaluate(1.0, epsilon = epsilon)
         }
     }
 
-    @Test
-    fun `is accurate for small values`() {
-        val x = 1e-8
+    @ParameterizedTest
+    @MethodSource("smallValues")
+    fun `is accurate for small values`(x: Double, delta: Double) {
         assertTrue(TaylorSin.evaluate(x) > 0.0)
-        assertEquals(sin(x), TaylorSin.evaluate(x), 1e-20)
+        assertEquals(sin(x), TaylorSin.evaluate(x), delta)
+    }
+
+    companion object {
+        @JvmStatic
+        fun zeroCases(): Stream<Arguments> =
+            Stream.of(Arguments.of(0.0, 0.0, 1e-15))
+
+        @JvmStatic
+        fun representativeValues(): Stream<Arguments> =
+            Stream.of(
+                Arguments.of(-PI),
+                Arguments.of(-PI / 2),
+                Arguments.of(-PI / 6),
+                Arguments.of(PI / 6),
+                Arguments.of(PI / 2),
+                Arguments.of(PI)
+            )
+
+        @JvmStatic
+        fun largeArguments(): Stream<Arguments> =
+            Stream.of(Arguments.of(1234 * PI + PI / 3))
+
+        @JvmStatic
+        fun oddSymmetryValues(): Stream<Arguments> =
+            Stream.of(Arguments.of(0.73))
+
+        @JvmStatic
+        fun invalidEpsilons(): Stream<Arguments> =
+            Stream.of(
+                Arguments.of(0.0),
+                Arguments.of(-1e-12)
+            )
+
+        @JvmStatic
+        fun smallValues(): Stream<Arguments> =
+            Stream.of(Arguments.of(1e-8, 1e-20))
     }
 }

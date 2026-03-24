@@ -133,7 +133,7 @@ class BPlusTree(private val maxKeys: Int = 7) {
             trace += "SEARCH_DESCEND_$nextIndex"
             current = current.children[nextIndex]
         }
-        return current
+        return current as LeafNode
     }
 
     private fun childIndex(node: InternalNode, key: Int): Int {
